@@ -1,0 +1,8 @@
+deps/
+build/
+*.elf
+*.dol
+*.map
+__pycache__/
+*.pyc
+docs/

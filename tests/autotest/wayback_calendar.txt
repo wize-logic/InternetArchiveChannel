@@ -1,0 +1,37 @@
+# Phase 6: CDX calendar, page, bookmark, zoom, bookmarks list. Needs web.archive.org (16:9).
+wait 10
+click 624 310
+wait 3
+click 171 336
+waitms 30000
+log shot:months
+nopoint
+press RIGHT
+wait 1
+press A
+wait 2
+log shot:days
+press RIGHT
+wait 1
+press A
+waitms 45000
+log shot:page
+click 694 46
+wait 2
+log shot:saved
+nopoint
+press 2
+wait 4
+press 2
+wait 4
+log shot:zoomed
+press B
+wait 3
+press B
+wait 2
+press B
+wait 2
+click 715 146
+wait 2
+log shot:bookmarks
+quit

@@ -1,0 +1,62 @@
+# A PDF upload read as a book (16:9, needs archive.org): search scoped to Books, the page count
+# from its page list, a B-drag swipe to the next page, text mode with a B-drag scroll, then taps
+# of B back to the pages and out of the viewer.
+wait 10
+click 726 127
+wait 2
+click 726 127
+wait 2
+click 726 127
+wait 2
+click 300 127
+wait 3
+type atomic habits pdfdrive
+wait 1
+press PLUS
+waitms 12000
+log shot:results
+click 110 150
+waitms 8000
+log shot:item
+nopoint
+press A
+waitms 25000
+log shot:page
+point 600 250
+wait 2
+hold B
+wait 3
+point 500 250
+wait 2
+point 400 250
+wait 2
+point 300 250
+wait 2
+log shot:swiping
+release B
+waitms 15000
+log shot:next-page
+point 659 427
+wait 2
+press A
+waitms 20000
+log shot:text
+point 400 350
+wait 2
+hold B
+wait 20
+point 400 250
+wait 2
+point 400 150
+wait 2
+release B
+wait 5
+log shot:text-dragged
+nopoint
+press B
+wait 10
+log shot:pages-again
+press B
+wait 10
+log shot:closed
+quit

@@ -1,0 +1,51 @@
+# Phase 1 UI walk-through: every screen, D-pad navigation, keyboard input, a pointer hover.
+# Copy to sd:/apps/iachannel/autotest.txt; the app runs it instead of reading controllers.
+wait 20
+log shot:home
+press A
+wait 15
+log shot:osk-open
+type grateful dead
+wait 10
+log shot:osk-typed
+press PLUS
+wait 20
+log shot:search
+press B
+wait 15
+press DOWN
+wait 5
+press A
+wait 20
+log shot:browse
+press B
+wait 15
+press DOWN
+wait 5
+press DOWN
+wait 5
+press LEFT
+wait 5
+press A
+wait 20
+log shot:settings
+press A
+wait 5
+press DOWN
+wait 5
+press A
+wait 15
+log shot:settings-toggled
+press B
+wait 15
+point 600 300
+wait 15
+log shot:pointer-hover
+nopoint
+press HOME
+wait 20
+log shot:exit-dialog
+press B
+wait 15
+log shot:done
+quit

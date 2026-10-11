@@ -1,0 +1,4 @@
+[submodule "third_party/WiiLibs"]
+	path = third_party/WiiLibs
+	url = https://github.com/wize-logic/WiiLibs
+	branch = main

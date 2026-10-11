@@ -1,0 +1,32 @@
+# Phase 2: category grid, item page, search. Needs the network (archive.org can take 10-20 s).
+wait 30
+log shot:home
+press DOWN
+wait 5
+press A
+waitms 15000
+log shot:movies-grid
+press A
+waitms 10000
+log shot:item
+press B
+wait 10
+press B
+wait 20
+press UP
+wait 5
+press UP
+wait 5
+press A
+wait 15
+type grateful dead
+wait 5
+press PLUS
+waitms 15000
+log shot:search-results
+press RIGHT
+wait 5
+press A
+waitms 10000
+log shot:search-item
+quit

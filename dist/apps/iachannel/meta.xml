@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<app version="1">
+  <name>Internet Archive Channel</name>
+  <coder>wize-logic</coder>
+  <version>1.0.0</version>
+  <release_date>20261010000000</release_date>
+  <short_description>Unofficial Internet Archive browser</short_description>
+  <long_description>Browse the Internet Archive (archive.org) on your Wii: movies, audio, books, images and the Wayback Machine. Unofficial; not affiliated with the Internet Archive.
+
+Search and browse collections, stream music and old-time radio, watch films, read books page by page (or as text), view images, and visit old websites through the Wayback Machine. Everything downloads over HTTPS directly on the Wii.
+
+Controls: point with the Wii Remote and press A, or use the D-pad. B goes back, + and - scroll or zoom, HOME exits, 1 toggles the performance overlay. GameCube controllers and USB keyboards work too.</long_description>
+  <no_ios_reload/>
+  <ahb_access/>
+</app>

@@ -1,0 +1,34 @@
+# Category search and a text-only book (16:9, needs archive.org): Books list, its Search button,
+# B back to the list, then a Project Gutenberg item read as text.
+wait 10
+click 690 200
+waitms 10000
+log shot:books
+click 731 50
+wait 3
+type goody two shoes
+wait 1
+press PLUS
+waitms 10000
+log shot:books-search
+nopoint
+press B
+waitms 10000
+log shot:books-again
+press B
+wait 5
+click 300 127
+wait 3
+type amusements in mathematics
+wait 1
+press PLUS
+waitms 10000
+log shot:gut-results
+click 110 150
+waitms 8000
+log shot:gut-item
+nopoint
+press A
+waitms 30000
+log shot:gut-text
+quit

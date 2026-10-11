@@ -1,0 +1,12 @@
+--- a/netsurf/content/fetch.c	2023-12-27 19:57:22.847323700 -0500
++++ b/netsurf/content/fetch.c	2026-10-09 18:14:48.542768805 -0400
+@@ -54,7 +54,9 @@
+ #include "content/fetchers.h"
+ #include "content/fetchers/resource.h"
+ #include "content/fetchers/about/about.h"
++#ifdef WITH_CURL
+ #include "content/fetchers/curl.h"
++#endif
+ #include "content/fetchers/data.h"
+ #include "content/fetchers/file/file.h"
+ #include "javascript/fetcher.h"

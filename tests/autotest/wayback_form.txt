@@ -1,0 +1,36 @@
+# Phase 6: forms and zoom on a local page (no network needed for the page itself).
+# SD: apps/iachannel/t/form.html = tests/autotest/fixtures/web/form.html
+wait 10
+click 624 310
+wait 3
+log shot:picker
+click 262 146
+wait 2
+type \b\b\b\b\b\b\b\b\b\b\b\b\b
+wait 1
+type file:///sd/apps/
+wait 1
+type iachannel/t/form.html
+wait 1
+press PLUS
+wait 2
+click 552 146
+waitms 40000
+log shot:form-page
+click 300 110
+wait 3
+log shot:form-keyboard
+type wii homebrew
+wait 1
+press PLUS
+wait 5
+log shot:form-submitted
+press B
+wait 5
+press 2
+wait 3
+press 2
+wait 3
+log shot:zoomed
+nopoint
+quit

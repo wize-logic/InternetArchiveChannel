@@ -1,0 +1,45 @@
+--- a/netsurf/utils/config.h	2023-12-27 19:57:23.095317100 -0500
++++ b/netsurf/utils/config.h	2026-10-09 18:14:48.539168805 -0400
+@@ -143,7 +143,6 @@
+ #define HAVE_SCANDIR
+ #if (defined(_WIN32) ||				\
+      defined(__serenity__))
+-#undef HAVE_SCANDIR
+ #endif
+ 
+ #define HAVE_DIRFD
+@@ -160,6 +159,17 @@
+ #undef HAVE_REGEX
+ #endif
+ 
++/* Nintendo Wii (devkitPPC newlib + libogc): no regex, mmap, *at() or scandir. */
++#if defined(GEKKO)
++#undef HAVE_REGEX
++#undef HAVE_MMAP
++#undef HAVE_DIRFD
++#undef HAVE_UNLINKAT
++#undef HAVE_FSTATAT
++#undef HAVE_UTSNAME
++#undef HAVE_SIGPIPE
++#endif
++
+ /* execinfo available for backtrace */
+ #if ((defined(__linux__) && defined(__GLIBC__) && !defined(__UCLIBC__)) || \
+      defined(__APPLE__))
+@@ -186,6 +196,8 @@
+     	/* Not even BONE has it. */
+     	#define NO_IPV6 1
+     #endif
++#elif defined(GEKKO)
++    /* Wii: no mmap */
+ #else
+     /* We're likely to have a working mmap() */
+     #define WITH_MMAP
+@@ -195,6 +207,7 @@
+ #if (defined(__amigaos4__) ||			\
+      defined(__AMIGA__) ||			\
+      defined(nsatari) ||			\
++     defined(GEKKO) ||				\
+      defined(__serenity__))
+ 	#define NO_IPV6
+ #endif

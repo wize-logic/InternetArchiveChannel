@@ -1,0 +1,5 @@
+# -*- mode: makefile-gmake -*-
+# NetSurf "wii" frontend: devkitPPC cross toolchain. IAC_PREFIX is set by tools/build-deps.sh.
+CC := $(DEVKITPPC)/bin/powerpc-eabi-gcc
+AR := $(DEVKITPPC)/bin/powerpc-eabi-ar
+PKG_CONFIG := PKG_CONFIG_LIBDIR="$(IAC_PREFIX)/lib/pkgconfig:$(DEVKITPRO)/portlibs/ppc/lib/pkgconfig" PKG_CONFIG_PATH= pkg-config

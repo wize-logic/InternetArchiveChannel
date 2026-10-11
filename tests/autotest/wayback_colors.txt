@@ -1,0 +1,56 @@
+# Wayback page view on a local page: image colours (PNG and JPEG against CSS boxes), pointer
+# shapes (clock while loading, hand over a link, arrow elsewhere, fist while B drags), B-drag
+# scrolling, +/- zoom and a tap of B going back. 16:9.
+# SD: apps/iachannel/t/{colors.html,colors.png,colors.jpg,form.html} = tests/autotest/fixtures/web/
+wait 10
+click 624 310
+wait 3
+click 262 146
+wait 2
+type \b\b\b\b\b\b\b\b\b\b\b\b\b
+wait 1
+type file:///sd/apps/
+wait 1
+type iachannel/t/colors.html
+wait 1
+press PLUS
+wait 2
+click 552 146
+wait 2
+point 420 300
+wait 2
+log shot:loading
+waitms 30000
+log shot:page
+point 420 300
+wait 3
+log shot:arrow
+hold B
+wait 20
+point 420 250
+wait 3
+point 420 180
+wait 3
+point 420 120
+wait 3
+log shot:drag
+release B
+wait 5
+log shot:after-drag
+point 280 400
+wait 3
+log shot:link
+point 420 300
+wait 2
+press PLUS
+wait 10
+log shot:zoom-in
+press MINUS
+wait 5
+press MINUS
+wait 10
+log shot:zoom-out
+press B
+wait 10
+log shot:back
+quit

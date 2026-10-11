@@ -1,0 +1,153 @@
+--- a/netsurf/frontends/framebuffer/font_freetype.h	2023-12-27 19:57:22.991320000 -0500
++++ b/netsurf/frontends/framebuffer/font_freetype.h	2026-10-10 15:02:27.435469257 -0400
+@@ -27,4 +27,12 @@
+ 
+ FT_Glyph fb_getglyph(const plot_font_style_t *fstyle, uint32_t ucs4);
+ 
++/**
++ * The glyph's linear advance (its design width scaled to the font size, without hinting), in
++ * 16.16 pixels. Hinted advances are rounded to whole pixels at each size, so text measured at one
++ * size and drawn at another (zoom) came out wider or narrower than laid out; linear advances
++ * scale exactly. Used for both measuring and plotting.
++ */
++FT_Fixed fb_glyph_advance(const plot_font_style_t *fstyle, uint32_t ucs4);
++
+ #endif /* NETSURF_FB_FONT_FREETYPE_H */
+--- a/netsurf/frontends/framebuffer/font_freetype.c	2023-12-27 19:57:22.991320000 -0500
++++ b/netsurf/frontends/framebuffer/font_freetype.c	2026-10-10 15:02:28.099135844 -0400
+@@ -21,6 +21,7 @@
+ 
+ #include <ft2build.h>
+ #include FT_CACHE_H
++#include FT_ADVANCES_H
+ 
+ #include "netsurf/inttypes.h"
+ #include "utils/filepath.h"
+@@ -429,6 +430,29 @@
+ }
+ 
+ 
++/* exported interface documented in framebuffer/font_freetype.h */
++FT_Fixed fb_glyph_advance(const plot_font_style_t *fstyle, uint32_t ucs4)
++{
++        FTC_ScalerRec srec;
++        fb_faceid_t *fb_face;
++        FT_Face face;
++        FT_UInt glyph_index;
++        FT_Fixed units;
++
++        fb_fill_scalar(fstyle, &srec);
++        fb_face = (fb_faceid_t *)srec.face_id;
++        if (FTC_Manager_LookupFace(ft_cmanager, srec.face_id, &face) != 0 ||
++            face->units_per_EM == 0)
++                return 0;
++        glyph_index = FTC_CMapCache_Lookup(ft_cmap_cache, srec.face_id,
++                        fb_face->cidx, ucs4);
++        if (FT_Get_Advance(face, glyph_index, FT_LOAD_NO_SCALE, &units) != 0)
++                return 0;
++        /* srec.width is the size in 26.6 points at x_res dpi */
++        return (FT_Fixed)((double)units * srec.width * srec.x_res * 1024.0 /
++                        (72.0 * face->units_per_EM));
++}
++
+ /* exported interface documented in framebuffer/freetype_font.h */
+ nserror
+ fb_font_width(const plot_font_style_t *fstyle,
+@@ -437,19 +461,15 @@
+ {
+         uint32_t ucs4;
+         size_t nxtchr = 0;
+-        FT_Glyph glyph;
++        FT_Fixed w = 0;
+ 
+-        *width = 0;
+         while (nxtchr < length) {
+                 ucs4 = utf8_to_ucs4(string + nxtchr, length - nxtchr);
+                 nxtchr = utf8_next(string, length, nxtchr);
+ 
+-                glyph = fb_getglyph(fstyle, ucs4);
+-                if (glyph == NULL)
+-                        continue;
+-
+-                *width += glyph->advance.x >> 16;
++                w += fb_glyph_advance(fstyle, ucs4);
+         }
++        *width = (int)((w + 0x8000) >> 16);
+ 	return NSERROR_OK;
+ }
+ 
+@@ -462,18 +482,15 @@
+ {
+         uint32_t ucs4;
+         size_t nxtchr = 0;
+-        FT_Glyph glyph;
++        FT_Fixed acc = 0;
+         int prev_x = 0;
+ 
+         *actual_x = 0;
+         while (nxtchr < length) {
+                 ucs4 = utf8_to_ucs4(string + nxtchr, length - nxtchr);
+ 
+-                glyph = fb_getglyph(fstyle, ucs4);
+-                if (glyph == NULL)
+-                        continue;
+-
+-                *actual_x += glyph->advance.x >> 16;
++                acc += fb_glyph_advance(fstyle, ucs4);
++                *actual_x = (int)((acc + 0x8000) >> 16);
+                 if (*actual_x > x)
+                         break;
+ 
+@@ -521,22 +538,19 @@
+         size_t nxtchr = 0;
+         int last_space_x = 0;
+         int last_space_idx = 0;
+-        FT_Glyph glyph;
++        FT_Fixed acc = 0;
+ 
+         *actual_x = 0;
+         while (nxtchr < length) {
+                 ucs4 = utf8_to_ucs4(string + nxtchr, length - nxtchr);
+ 
+-                glyph = fb_getglyph(fstyle, ucs4);
+-                if (glyph == NULL)
+-                        continue;
+-
+                 if (ucs4 == 0x20) {
+                         last_space_x = *actual_x;
+                         last_space_idx = nxtchr;
+                 }
+ 
+-                *actual_x += glyph->advance.x >> 16;
++                acc += fb_glyph_advance(fstyle, ucs4);
++                *actual_x = (int)((acc + 0x8000) >> 16);
+                 if (*actual_x > x && last_space_idx != 0) {
+                         /* string has exceeded available width and we've
+                          * found a space; return previous space */
+--- a/netsurf/frontends/framebuffer/framebuffer.c	2023-12-27 19:57:22.991320000 -0500
++++ b/netsurf/frontends/framebuffer/framebuffer.c	2026-10-10 15:02:28.106469176 -0400
+@@ -422,11 +422,15 @@
+ 	FT_Glyph glyph;
+ 	FT_BitmapGlyph bglyph;
+ 	nsfb_bbox_t loc;
++	/* Pen position in 16.16 from linear advances, as the layout measured it. */
++	FT_Fixed pen = (FT_Fixed)x << 16;
+ 
+ 	while (nxtchr < length) {
+ 		ucs4 = utf8_to_ucs4(text + nxtchr, length - nxtchr);
+ 		nxtchr = utf8_next(text, length, nxtchr);
+ 
++		x = (int)((pen + 0x8000) >> 16);
++		pen += fb_glyph_advance(fstyle, ucs4);
+ 		glyph = fb_getglyph(fstyle, ucs4);
+ 		if (glyph == NULL)
+ 			continue;
+@@ -454,8 +458,6 @@
+ 					     fstyle->foreground);
+ 			}
+ 		}
+-		x += glyph->advance.x >> 16;
+-
+ 	}
+ 	return NSERROR_OK;
+ 
