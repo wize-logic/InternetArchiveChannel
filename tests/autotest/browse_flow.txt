@@ -5,13 +5,17 @@ press DOWN
 wait 5
 press A
 waitms 15000
-log shot:movies-grid
+log shot:category-grid
 press A
 waitms 10000
 log shot:item
-press B
+click 101 51
+wait 5
+nopoint
 wait 10
-press B
+click 101 51
+wait 5
+nopoint
 wait 20
 press UP
 wait 5

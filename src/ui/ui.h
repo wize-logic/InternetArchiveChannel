@@ -65,6 +65,9 @@ void ui_draw_image_fit(struct rect r, const struct image *img, uint32_t tint);
 /* Label with an on/off switch; flips *value when activated, returns 1 then. */
 int ui_toggle(int id, struct rect r, const char *label, int *value);
 void ui_focus(int id);
+/* `id` (e.g. a header Back button) is reachable with the D-pad, but when nothing has focus it goes
+ * to the first other widget, so A doesn't act on it by surprise. */
+void ui_no_default_focus(int id);
 int ui_get_focus(void);
 
 /* Bottom hint bar: "(A) Select  (B) Back" etc. */

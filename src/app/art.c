@@ -3,6 +3,7 @@
 #include "about_png.h"
 #include "audio_png.h"
 #include "books_png.h"
+#include "collections_png.h"
 #include "favourite_png.h"
 #include "images_png.h"
 #include "logo_png.h"
@@ -50,6 +51,7 @@ void art_load(void)
 		{settings_png, &settings_png_size, "settings"},
 		{about_png, &about_png_size, "about"},
 		{favourite_png, &favourite_png_size, "favourite"},
+		{collections_png, &collections_png_size, "collections"},
 	};
 	for (int i = 0; i < ICON_COUNT; i++)
 		load(&art.icons[i], icons[i].data, *icons[i].size, icons[i].name);

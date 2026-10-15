@@ -24,6 +24,10 @@ double player_duration(void); /* seconds, 0 if unknown */
 /* 0..1 of the read-ahead buffer target, for a "buffering" indicator. */
 float player_buffer_level(void);
 const char *player_error(void);
+/* What a long load is doing ("Reading the video index..."), or "" for the plain "Loading". */
+const char *player_status(void);
+/* malloc heap in use, in KB, for the progress log. */
+int player_heap_used_kb(void);
 
 /* Video (Phase 5): the newest decoded frame due for display, or NULL. The planes stay valid
  * until the next call. */

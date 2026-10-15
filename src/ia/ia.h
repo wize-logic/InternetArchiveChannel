@@ -26,11 +26,18 @@ struct ia_search {
 
 enum ia_sort { IA_SORT_POPULAR = 0, IA_SORT_NEWEST, IA_SORT_TITLE };
 
+/* Collections whose items the channel can't open: lending library, print-disabled, stream-only
+ * and TV News. Lucene OR-list. */
+#define IA_CLOSED_COLLECTIONS "inlibrary OR printdisabled OR stream_only OR tvarchive OR tvnews"
 /* Builds an advancedsearch URL. `query` is Lucene syntax (encoded here). Items that can only
- * be borrowed (lending library) are excluded, since the channel can't read them. */
+ * be borrowed (lending library) or streamed (TV News) are excluded, along with the collections
+ * that hold only those, since the channel can't read them. */
 int ia_search_url(char *out, size_t cap, const char *query, enum ia_sort sort, int rows, int page);
-/* Turns free text from the keyboard into a query (plain words are ANDed, quotes kept). */
-void ia_user_query(const char *text, const char *mediatype, char *out, size_t cap);
+/* Turns free text from the keyboard into a query: every word (or "quoted phrase") must match, in
+ * the title or creator when `titles` is set (the useful results: sorted by downloads, a match
+ * anywhere is mostly noise), else anywhere in the metadata. Only mediatypes the channel opens, or
+ * `mediatype` ("" for all). "" when there are no words. */
+void ia_user_query(const char *text, const char *mediatype, int titles, char *out, size_t cap);
 int ia_parse_search(const char *json, struct ia_search *out);
 void ia_search_free(struct ia_search *s);
 
@@ -77,6 +84,10 @@ int ia_file_url(char *out, size_t cap, const char *id, const char *file_name);
 /* Index of the best Wii-playable video file, or -1. *fast_hint is set for H.264 above 320 px
  * wide, which needs the skip-loop-filter decode path. */
 int ia_pick_video(const struct ia_item *it, int *fast_hint);
+/* Average bitrate of a file in kbit/s, or 0 if its size or length is unknown. */
+int ia_file_kbps(const struct ia_file *f);
+/* Above this a stream may not keep up with the Wii's ~350-400 KB/s link (the plan wants 2x headroom). */
+#define IA_VIDEO_WARN_KBPS 1500
 /* Indices of playable audio tracks in item order (one format per track, VBR MP3 preferred).
  * Returns the count (<= max). */
 int ia_list_audio(const struct ia_item *it, int *out, int max);

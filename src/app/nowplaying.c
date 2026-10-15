@@ -38,9 +38,9 @@ void nowplaying_frame(void)
 		last_log = now;
 		uint32_t shown, skipped, dropped;
 		player_video_stats(&shown, &skipped, &dropped);
-		WL_LOG_I("NP", "%.1f / %.1f s, state %d, buffer %.0f%%, underruns %u, video %u shown %u late %u dropped",
+		WL_LOG_I("NP", "%.1f / %.1f s, state %d, buffer %.0f%%, underruns %u, video %u shown %u late %u dropped, heap %d KB",
 			player_position(), player_duration(), (int)player_get_state(), (double)(player_buffer_level() * 100),
-			wl_platform_audio_underruns(), shown, skipped, dropped);
+			wl_platform_audio_underruns(), shown, skipped, dropped, player_heap_used_kb());
 	}
 	if (g_np.active && player_get_state() == PL_ENDED) {
 		if (g_np.current + 1 < g_np.count)

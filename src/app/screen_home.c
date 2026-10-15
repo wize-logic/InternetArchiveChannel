@@ -5,7 +5,8 @@
 #include "ia/ia.h"
 #include "ui/osk.h"
 
-enum { ID_SEARCH = 1, ID_MOVIES, ID_AUDIO, ID_TEXTS, ID_IMAGES, ID_WAYBACK, ID_SETTINGS, ID_ABOUT, ID_SCOPE };
+enum { ID_SEARCH = 1, ID_MOVIES, ID_AUDIO, ID_TEXTS, ID_IMAGES, ID_WAYBACK, ID_SETTINGS, ID_ABOUT, ID_SCOPE,
+	ID_COLLECTIONS };
 
 struct category {
 	int id;
@@ -32,9 +33,16 @@ static const struct category k_categories[] = {
 		"europeanlibraries OR library_of_congress OR bostonpubliclibrary OR americanlibraries OR "
 		"canadian_libraries) AND (format:\"Single Page Processed JP2 ZIP\" OR format:Text OR format:DjVuTXT)",
 		RGBA(0xe8, 0xc0, 0x4a, 0xFF), ICON_BOOKS, "texts"},
-	{ID_IMAGES, "Images", "Photos and scans", "mediatype:image", RGBA(0xb0, 0x6a, 0xe8, 0xFF), ICON_IMAGES, "image"},
-	{ID_WAYBACK, "Wayback Machine", "Old websites", "", RGBA(0x4a, 0x9e, 0xe8, 0xFF), ICON_WAYBACK, NULL},
+	{ID_IMAGES, "Images", "Photos & scans", "mediatype:image", RGBA(0xb0, 0x6a, 0xe8, 0xFF), ICON_IMAGES, "image"},
+	/* Everything else: the collections under the archive's video, audio, text and image sections, most
+	 * visited first; one opens as its own list. (Every search leaves out the lending, print-disabled
+	 * and stream-only ones, TV news included: the channel can't open their items.) */
+	{ID_COLLECTIONS, "Collections", "Browse them all",
+		"mediatype:collection AND collection:(movies OR audio OR etree OR texts OR image) AND NOT identifier:fav-*",
+		RGBA(0x4a, 0xc8, 0xc0, 0xFF), ICON_COLLECTIONS, "collection"},
+	{ID_WAYBACK, "Wayback", "Old websites", "", RGBA(0x4a, 0x9e, 0xe8, 0xFF), ICON_WAYBACK, NULL},
 };
+#define CATEGORY_COUNT (int)(sizeof k_categories / sizeof k_categories[0])
 
 /* What the search box searches: everything, or one category (the button beside it cycles). */
 static const struct {
@@ -70,26 +78,16 @@ static void frame(void)
 	if (ui_button(ID_SCOPE, (struct rect){c.x + c.w - scope_w, c.y, scope_w, 50}, scope))
 		g_scope = (g_scope + 1) % SCOPE_COUNT;
 
-	/* Tile grid under the search bar: 3 + 2 on the 854-wide (16:9) canvas; on 4:3, two columns
-	 * (Movies/Audio, Books/Images) and Wayback across the full width, so tiles stay wide enough
-	 * for their titles and every icon is the same size. */
+	/* Tile grid under the search bar: 3 x 2 on the 854-wide (16:9) canvas, 2 x 3 on 4:3, so tiles
+	 * stay wide enough for their titles and every icon is the same size. */
 	float gap = 12, top = c.y + 62;
-	int wide = draw_width() > 700;
-	int rows = wide ? 2 : 3;
+	int cols = draw_width() > 700 ? 3 : 2;
+	int rows = (CATEGORY_COUNT + cols - 1) / cols;
 	float tile_h = (c.h - 62 - 58 - gap * (float)(rows - 1)) / (float)rows;
-	for (int i = 0; i < 5; i++) {
+	float tile_w = (c.w - gap * (float)(cols - 1)) / (float)cols;
+	for (int i = 0; i < CATEGORY_COUNT; i++) {
 		const struct category *k = &k_categories[i];
-		struct rect r;
-		if (wide) {
-			float w3 = (c.w - 2 * gap) / 3, w2 = (c.w - gap) / 2;
-			r = i < 3 ? (struct rect){c.x + (float)i * (w3 + gap), top, w3, tile_h}
-				  : (struct rect){c.x + (float)(i - 3) * (w2 + gap), top + tile_h + gap, w2, tile_h};
-		} else {
-			float w2 = (c.w - gap) / 2;
-			int row = i / 2, col = i % 2;
-			r = i < 4 ? (struct rect){c.x + (float)col * (w2 + gap), top + (float)row * (tile_h + gap), w2, tile_h}
-				  : (struct rect){c.x, top + 2 * (tile_h + gap), c.w, tile_h};
-		}
+		struct rect r = {c.x + (float)(i % cols) * (tile_w + gap), top + (float)(i / cols) * (tile_h + gap), tile_w, tile_h};
 		if (ui_tile(k->id, r, k->title, k->subtitle, k->accent, art_icon(k->icon))) {
 			if (k->id == ID_WAYBACK) {
 				app_push(&screen_wayback, NULL);
@@ -126,9 +124,11 @@ static void frame(void)
 					snprintf(args.title, sizeof args.title, "\"%s\" in %s", g_search, k_scopes[g_scope].label);
 				else
 					snprintf(args.title, sizeof args.title, "\"%s\"", g_search);
-				ia_user_query(g_search, k_scopes[g_scope].mediatype, args.query, sizeof args.query);
+				ia_user_query(g_search, k_scopes[g_scope].mediatype, 1, args.query, sizeof args.query);
+				ia_user_query(g_search, k_scopes[g_scope].mediatype, 0, args.fallback, sizeof args.fallback);
 				args.sort = IA_SORT_POPULAR;
-				app_push(&screen_results, &args);
+				if (args.query[0])
+					app_push(&screen_results, &args);
 			}
 		}
 	}

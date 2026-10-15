@@ -70,10 +70,7 @@ static void frame(void)
 	const struct input_state *in = ui_input();
 	if (in->pressed || in->pointer_moved || in->text_len)
 		g.osd_frames = 180;
-	if (ui_pressed(BTN_B)) {
-		leave();
-		return;
-	}
+	/* B only wakes the controls (any button does); Close is on them. */
 	enum player_state st = player_get_state();
 	if (st == PL_ENDED) {
 		leave();
@@ -81,8 +78,8 @@ static void frame(void)
 	}
 	if (st == PL_LOADING || st == PL_ERROR) {
 		struct rect all = {0, 0, (float)draw_width(), UI_H};
-		app_spinner(all, st == PL_ERROR ? player_error() : "Loading video...");
-		if (st == PL_ERROR && ui_button(ID_BACK, (struct rect){all.w / 2 - 80, UI_H - 120, 160, 46}, "Back"))
+		app_spinner(all, st == PL_ERROR ? player_error() : player_status()[0] ? player_status() : "Loading video...");
+		if (ui_button(ID_BACK, (struct rect){all.w / 2 - 80, UI_H - 120, 160, 46}, "Back"))
 			leave();
 		return;
 	}

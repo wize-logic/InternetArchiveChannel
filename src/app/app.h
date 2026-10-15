@@ -19,7 +19,7 @@ extern struct settings app_settings;
 /* Pixel art (assets/ui), decoded once at start-up. Missing images stay zeroed and the
  * UI falls back to drawn shapes. */
 enum { ICON_MOVIES, ICON_AUDIO, ICON_BOOKS, ICON_IMAGES, ICON_WAYBACK, ICON_SEARCH, ICON_SETTINGS,
-	ICON_ABOUT, ICON_FAVOURITE, ICON_COUNT };
+	ICON_ABOUT, ICON_FAVOURITE, ICON_COLLECTIONS, ICON_COUNT };
 #define POINTER_TAP_FRAMES 5
 struct app_art {
 	struct image icons[ICON_COUNT];
@@ -31,13 +31,23 @@ void art_load(void);
 /* NULL when the image failed to load. */
 const struct image *art_icon(int which);
 
+/* Screens deep the stack goes (collections open inside collections); pushes past it are dropped. */
+#define APP_STACK_MAX 12
 void app_push(const struct screen *s, void *arg);
 void app_pop(void);
+int app_depth(void); /* screens on the stack; 1 on the home screen */
 void app_request_exit(void); /* shows the exit confirmation */
 void app_save_settings(void);
 
-/* Shared chrome: background, header with the screen title, safe-area content rect. */
+/* Shared chrome: background, header with the screen title, safe-area content rect. Below the home
+ * screen the header starts with a Back button in place of the logo. */
 struct rect app_chrome(const char *title, const char *subtitle);
+/* Going back is an on-screen button (B is for holding and dragging, as in the Internet Channel).
+ * app_back: the chrome's Back button was activated this frame (call after app_chrome).
+ * app_back_button: one placed by a screen without the chrome; 1 when activated. */
+int app_back(void);
+int app_back_button(struct rect r);
+#define APP_BACK_W 116
 
 extern const struct screen screen_home, screen_results, screen_item, screen_settings, screen_about,
 	screen_placeholder;
@@ -55,11 +65,13 @@ void thumbs_clear(void);
 /* What screen_results shows. */
 struct results_args {
 	char title[96];
-	char query[512]; /* Lucene query */
+	char query[768]; /* Lucene query */
+	char fallback[768]; /* run instead when `query` finds nothing ("" for none) */
 	int sort;        /* enum ia_sort */
 	/* A category's list: searches from it stay inside its mediatype ("" for none). */
 	char mediatype[16];
 	char category[24]; /* its name, e.g. "Books" */
+	char search[128];  /* the words a search inside a category looked for ("" for the list itself) */
 };
 
 /* The current playlist (audio tracks or one video). */

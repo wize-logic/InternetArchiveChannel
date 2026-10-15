@@ -25,11 +25,17 @@ wait 4
 press 2
 wait 4
 log shot:zoomed
-press B
+click 101 51
+wait 5
+nopoint
 wait 3
-press B
+click 101 51
+wait 5
+nopoint
 wait 2
-press B
+click 101 51
+wait 5
+nopoint
 wait 2
 click 715 146
 wait 2

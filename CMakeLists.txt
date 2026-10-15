@@ -231,6 +231,11 @@ if(NOT IAC_WII)
 	target_link_libraries(test_ia PRIVATE iac_net)
 	add_test(NAME ia COMMAND test_ia "${CMAKE_SOURCE_DIR}/tests/fixtures")
 
+	add_executable(test_mp4idx tests/test_mp4idx.c src/media/mp4idx.c)
+	target_include_directories(test_mp4idx PRIVATE src)
+	target_compile_options(test_mp4idx PRIVATE -Wall -Wextra)
+	add_test(NAME mp4idx COMMAND test_mp4idx)
+
 	# Live network test, run by hand: build/host/http_live
 	add_executable(http_live tests/http_live.c)
 	target_link_libraries(http_live PRIVATE iac_net)

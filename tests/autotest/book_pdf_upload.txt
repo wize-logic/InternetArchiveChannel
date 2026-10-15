@@ -1,6 +1,6 @@
 # A PDF upload read as a book (16:9, needs archive.org): search scoped to Books, the page count
-# from its page list, a B-drag swipe to the next page, text mode with a B-drag scroll, then taps
-# of B back to the pages and out of the viewer.
+# from its page list, a B-drag swipe to the next page, text mode with a B-drag scroll, then Pages
+# and Close on the overlay.
 wait 10
 click 726 127
 wait 2
@@ -53,10 +53,14 @@ release B
 wait 5
 log shot:text-dragged
 nopoint
-press B
+point 659 427
+wait 5
+click 659 427
 wait 10
 log shot:pages-again
-press B
+point 763 427
+wait 5
+click 763 427
 wait 10
 log shot:closed
 quit

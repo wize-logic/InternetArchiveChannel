@@ -287,7 +287,7 @@ static void frame(void)
 {
 	struct rect c = app_chrome("Wayback Machine", "Browse websites as they were");
 	poll_lookup();
-	if (!g.editing && !g.req && ui_pressed(BTN_B)) {
+	if (app_back() && !g.editing && !g.req) {
 		if (g.mode == DAYS)
 			g.mode = MONTHS;
 		else if (g.mode != PICK)
@@ -317,7 +317,7 @@ static void frame(void)
 			font_draw(theme.small, c.x, c.y + c.h - 4, theme.danger, g.message, -1);
 		}
 	}
-	ui_hints(g.mode == PICK ? "(A) Select    (B) Back" : "(A) Select    (B) Previous step");
+	ui_hints("(A) Select");
 
 	if (g.editing) {
 		int r = osk_update();

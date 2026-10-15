@@ -1,6 +1,6 @@
 # Wayback page view on a local page: image colours (PNG and JPEG against CSS boxes), pointer
 # shapes (clock while loading, hand over a link, arrow elsewhere, fist while B drags), B-drag
-# scrolling, +/- zoom and a tap of B going back. 16:9.
+# scrolling, +/- zoom and the toolbar's "<" leaving the page. 16:9.
 # SD: apps/iachannel/t/{colors.html,colors.png,colors.jpg,form.html} = tests/autotest/fixtures/web/
 wait 10
 click 624 310
@@ -50,7 +50,7 @@ wait 5
 press MINUS
 wait 10
 log shot:zoom-out
-press B
+click 537 46
 wait 10
 log shot:back
 quit

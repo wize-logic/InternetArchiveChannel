@@ -99,6 +99,10 @@ static const char *primary_action(char *info, size_t cap)
 			snprintf(info, cap, "Video: %s, %dx%d%s%s", f->format, f->width, f->height, len[0] ? ", " : "", len);
 		else
 			snprintf(info, cap, "Video: %s%s%s", f->format, len[0] ? ", " : "", len);
+		if (ia_file_kbps(f) > IA_VIDEO_WARN_KBPS) {
+			size_t used = strlen(info);
+			snprintf(info + used, cap - used, " - high bitrate, may buffer");
+		}
 		return "Watch";
 	}
 	if (g.track_count > 0) {
@@ -133,7 +137,7 @@ static void frame(void)
 {
 	poll_request();
 	struct rect c = app_chrome(g.loaded ? "Item" : "Loading...", NULL);
-	if (ui_pressed(BTN_B)) {
+	if (app_back()) {
 		app_pop();
 		return;
 	}
@@ -142,12 +146,10 @@ static void frame(void)
 			font_draw_wrapped(theme.body, c.x, c.y + 20, (int)c.w, theme.text, g.error_msg);
 			if (ui_button(ID_RETRY, (struct rect){c.x, c.y + 80, 180, 46}, "Try again"))
 				g.error = 0;
-			if (ui_button(ID_BACK, (struct rect){c.x + 194, c.y + 80, 160, 46}, "Back"))
-				app_pop();
 		} else {
 			app_spinner(c, net_state() == NET_FAILED ? "No network connection." : "Loading item...");
 		}
-		ui_hints("(B) Back");
+		ui_hints("");
 		return;
 	}
 
@@ -243,8 +245,6 @@ static void frame(void)
 		}
 		bx += 184;
 	}
-	if (ui_button(ID_BACK, (struct rect){bx, y, 140, 46}, "Back"))
-		app_pop();
 	y += 58;
 
 	/* Description fills the rest; UP/DOWN scroll it when it's longer than the space. */
@@ -277,7 +277,7 @@ static void frame(void)
 		draw_rect_outline(n, 2, theme.accent);
 		font_draw(theme.body, n.x + 20, n.y + 10, theme.text, g.notice, -1);
 	}
-	ui_hints("(A) Select    (B) Back    (1)/(2) Scroll description");
+	ui_hints("(A) Select    (1)/(2) Scroll description");
 }
 
 const struct screen screen_item = {"item", enter, frame};

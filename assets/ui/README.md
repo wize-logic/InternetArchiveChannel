@@ -5,7 +5,7 @@ start-up (`src/gfx/image.c`).
 
 | File | Use |
 |---|---|
-| `icons/*.png` | Home screen tiles: `movies audio books images wayback search settings about favourite` |
+| `icons/*.png` | Home screen tiles: `movies audio books images wayback search settings about favourite collections` |
 | `logo.png` | Header mark, Homebrew Channel icon and channel banner |
 | `pointer.png` | The normal pointer (a glove pointing up); hotspot at the fingertip, see `src/app/art.c` |
 | `pointer_tap_0..4.png` | The pointer over anything clickable: the index finger taps, looping |

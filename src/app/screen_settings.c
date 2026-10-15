@@ -44,9 +44,9 @@ static void frame(void)
 		app_save_settings();
 	}
 
-	if (ui_button(ID_BACK, (struct rect){c.x, c.y + c.h - 50, 160, 46}, "Back") || ui_pressed(BTN_B))
+	if (app_back())
 		app_pop();
-	ui_hints("(A) Change    (B) Back");
+	ui_hints("(A) Change");
 }
 
 const struct screen screen_settings = {"settings", enter, frame};

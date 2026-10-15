@@ -25,6 +25,8 @@ static struct {
 	int overscan;
 	int frame;
 	int restored; /* focus set explicitly: keep it even if last frame's layout lacks it */
+	int no_default; /* a widget the D-pad reaches but focus never starts on (ui_no_default_focus) */
+	int defaulted;  /* focus is there by default, not chosen: it may move once other widgets appear */
 	struct {
 		const struct image *img; /* first frame */
 		int frames, ms;          /* animated: frame count and time per frame */
@@ -132,19 +134,25 @@ void ui_begin(const struct input_state *in)
 			g.hover = g.prev[i].id;
 			break;
 		}
-		if (g.hover && in->pointer_moved)
+		if (g.hover && in->pointer_moved) {
 			g.focus = g.hover;
+			g.defaulted = 0;
+		}
 	}
-	/* Keep focus valid (unless it was just restored for a screen whose widgets come next). */
+	/* Keep focus valid (unless it was just restored for a screen whose widgets come next). Focus
+	 * that fell on the no-default widget only because it was alone (a screen still loading) moves
+	 * on once there is something else. */
 	struct widget *f = find(g.prev, g.nprev, g.focus);
 	if (g.restored) {
 		g.restored = 0;
-	} else if (g.nprev && (!f || (g.modal_up && !f->modal))) {
+	} else if (g.nprev && (!f || (g.modal_up && !f->modal) || (g.defaulted && g.focus == g.no_default && g.nprev > 1))) {
+		g.defaulted = 1;
 		g.focus = 0;
 		for (int i = 0; i < g.nprev; i++)
-			if (!g.modal_up || g.prev[i].modal) {
+			if ((!g.modal_up || g.prev[i].modal) && (!g.focus || g.focus == g.no_default)) {
 				g.focus = g.prev[i].id;
-				break;
+				if (g.focus != g.no_default)
+					break;
 			}
 	}
 }
@@ -175,10 +183,16 @@ int ui_pressed(uint32_t btn)
 	return (g.in->pressed & btn) != 0;
 }
 
+void ui_no_default_focus(int id)
+{
+	g.no_default = id;
+}
+
 void ui_focus(int id)
 {
 	g.focus = id;
 	g.restored = 1;
+	g.defaulted = 0;
 }
 
 int ui_get_focus(void)
@@ -321,8 +335,9 @@ static void navigate(void)
 		return;
 	struct widget *f = find(g.cur, g.ncur, g.focus);
 	if (!f) {
-		if (g.ncur)
-			g.focus = g.cur[0].id;
+		g.focus = 0;
+		for (int i = 0; i < g.ncur && (!g.focus || g.focus == g.no_default); i++)
+			g.focus = g.cur[i].id;
 		return;
 	}
 	float fx = f->r.x + f->r.w / 2, fy = f->r.y + f->r.h / 2;
@@ -344,8 +359,10 @@ static void navigate(void)
 			best_id = w->id;
 		}
 	}
-	if (best_id)
+	if (best_id) {
 		g.focus = best_id;
+		g.defaulted = 0;
+	}
 }
 
 /* A dark quad from the centre along angle a (radians, clockwise from 12), len long. */

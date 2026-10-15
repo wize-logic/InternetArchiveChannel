@@ -1,8 +1,8 @@
 /* Book and image viewer: one page/image at a time, fitted to the screen, with the neighbours
  * prefetched; zoom and pan; for books, a text mode (OCR or a plain-text edition, reflowed into
  * paragraphs). Books without page images open straight in text mode.
- * Holding B drags: it pans a zoomed page, turns the page when swiped sideways at normal size, and
- * scrolls the text. A tap of B leaves text mode, then the viewer. */
+ * Holding B and moving the pointer drags: it pans a zoomed page, turns the page when swiped sideways
+ * at normal size, and scrolls the text. The overlay's Close button leaves. */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -333,19 +333,10 @@ static void frame(void)
 	draw_rect((struct rect){0, 0, (float)draw_width(), UI_H}, RGBA(0x12, 0x12, 0x14, 0xFF));
 	struct rect s = ui_safe_area();
 	const struct input_state *in = ui_input();
-	/* B: a tap leaves text mode (when there are pages to go back to), then the viewer; held,
-	 * it drags. A sideways swipe at normal size turns the page when B is let go. */
+	/* Holding B drags (a sideways swipe at normal size turns the page when B is let go). Close and
+	 * Pages/Text on the overlay leave the viewer and text mode. */
 	int was_dragging = g.drag.active;
-	int b = drag_update(&g.drag, ui_modal_active() ? &(struct input_state){0} : in, wl_platform_time_us(),
-		&drag_dx, &drag_dy);
-	if (b == DRAG_TAP) {
-		if (g.text_mode && g.a.count > 0) {
-			g.text_mode = 0;
-		} else {
-			close_viewer();
-			return;
-		}
-	}
+	drag_update(&g.drag, ui_modal_active() ? &(struct input_state){0} : in, &drag_dx, &drag_dy);
 	if (g.drag.active)
 		ui_set_cursor(UI_CURSOR_GRAB);
 	if (in->pressed || in->pointer_moved)

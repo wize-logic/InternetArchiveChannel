@@ -83,8 +83,12 @@ enum ia_media ia_media_from_string(const char *s)
 
 int ia_search_url(char *out, size_t cap, const char *query, enum ia_sort sort, int rows, int page)
 {
-	char q[1024], enc[2048];
-	snprintf(q, sizeof q, "(%s) AND NOT access-restricted-item:true", query);
+	/* The lending library and TV News (stream-only) collections, and the collections inside
+	 * them, hold nothing the channel can open, so they would only ever list as empty. */
+	char q[1024], enc[3072];
+	snprintf(q, sizeof q,
+		"(%s) AND NOT access-restricted-item:true AND NOT collection:(" IA_CLOSED_COLLECTIONS ")"
+		" AND NOT identifier:(" IA_CLOSED_COLLECTIONS ")", query);
 	if (url_encode(q, enc, sizeof enc) < 0)
 		return -1;
 	static const char *const sorts[] = {"downloads+desc", "publicdate+desc", "titleSorter+asc"};
@@ -96,22 +100,57 @@ int ia_search_url(char *out, size_t cap, const char *query, enum ia_sort sort, i
 	return n > 0 && (size_t)n < cap ? 0 : -1;
 }
 
-void ia_user_query(const char *text, const char *mediatype, char *out, size_t cap)
+void ia_user_query(const char *text, const char *mediatype, int titles, char *out, size_t cap)
 {
-	/* Keep the user's words (quotes allowed); strip characters Lucene treats specially. */
-	char clean[512];
+	/* Terms: words or "quoted phrases", all required. Characters Lucene treats specially become
+	 * spaces, and AND/OR/NOT typed as words are searched for rather than obeyed. */
+	char terms[640];
 	size_t n = 0;
-	for (const char *p = text; *p && n < sizeof clean - 1; p++) {
-		unsigned char c = (unsigned char)*p;
-		if (strchr("\\+!(){}[]^~*?:/", c))
-			c = ' ';
-		clean[n++] = (char)c;
+	int count = 0;
+	const char *p = text;
+	for (;;) {
+		while (*p && (*p == ' ' || strchr("\\+!(){}[]^~*?:/-", *p)))
+			p++;
+		if (!*p)
+			break;
+		char term[256];
+		size_t t = 0;
+		if (*p == '"') {
+			term[t++] = *p++;
+			for (; *p && *p != '"' && t < sizeof term - 2; p++)
+				term[t++] = strchr("\\+!(){}[]^~*?:/", *p) ? ' ' : *p;
+			if (*p == '"')
+				p++;
+			if (t == 1)
+				continue; /* "" */
+			term[t++] = '"';
+		} else {
+			while (*p && *p != ' ' && *p != '"' && !strchr("\\+!(){}[]^~*?:/", *p) && t < sizeof term - 1)
+				term[t++] = *p++;
+		}
+		term[t] = '\0';
+		if (strcmp(term, "AND") == 0 || strcmp(term, "OR") == 0 || strcmp(term, "NOT") == 0)
+			for (char *c = term; *c; c++)
+				*c = (char)(*c + ('a' - 'A'));
+		int w = snprintf(terms + n, sizeof terms - n, "%s%s", count ? " AND " : "", term);
+		if (w < 0 || (size_t)w >= sizeof terms - n)
+			break;
+		n += (size_t)w;
+		count++;
 	}
-	clean[n] = '\0';
-	if (mediatype && *mediatype)
-		snprintf(out, cap, "(%s) AND mediatype:%s", clean, mediatype);
+	terms[n] = '\0';
+	if (!count) {
+		snprintf(out, cap, "%s", "");
+		return;
+	}
+	/* Only what the channel opens: an "audio" search takes in live music (etree) too. Users'
+	 * favourites lists (fav-*) are collections that match everything. */
+	const char *types = !mediatype || !*mediatype ? "(movies OR audio OR etree OR texts OR image OR collection)"
+		: strcmp(mediatype, "audio") == 0 ? "(audio OR etree)" : mediatype;
+	if (titles)
+		snprintf(out, cap, "(title:(%s) OR creator:(%s)) AND mediatype:%s AND NOT identifier:fav-*", terms, terms, types);
 	else
-		snprintf(out, cap, "%s", clean);
+		snprintf(out, cap, "(%s) AND mediatype:%s AND NOT identifier:fav-*", terms, types);
 }
 
 int ia_parse_search(const char *json, struct ia_search *out)
@@ -335,26 +374,38 @@ void ia_item_free(struct ia_item *it)
 
 /* ---- file selection --------------------------------------------------------------------- */
 
+/* Rank of a file as a Wii-playable video (0: not one). */
+static int video_rank(const struct ia_file *f)
+{
+	if (f->length > 0 && f->length < 1.0f)
+		return 0;
+	if (strcmp(f->format, "512Kb MPEG4") == 0)
+		return 4;
+	if (strcmp(f->format, "Ogg Video") == 0)
+		return 3;
+	if ((strcmp(f->format, "h.264") == 0 || strcmp(f->format, "h.264 IA") == 0 || strcmp(f->format, "MPEG4") == 0) &&
+		(f->height == 0 || f->height <= 480))
+		return f->height && f->height <= 360 ? 2 : 1;
+	return 0;
+}
+
+int ia_file_kbps(const struct ia_file *f)
+{
+	return f->size > 0 && f->length >= 1.0f ? (int)((double)f->size * 8 / 1000 / (double)f->length) : 0;
+}
+
 int ia_pick_video(const struct ia_item *it, int *fast_hint)
 {
 	/* Preference: the 320x240 "512Kb" derivative,
 	 * then Ogg Theora, then H.264 up to 480 lines. Very short "videos" are stills made from
-	 * image uploads. */
+	 * image uploads. Among equally ranked files the lower bitrate wins: the Wii's link tops out
+	 * around 350-400 KB/s. (How many samples FFmpeg can index is checked by the player on open.) */
 	int best = -1, best_rank = 0;
 	for (int i = 0; i < it->file_count; i++) {
 		const struct ia_file *f = &it->files[i];
-		if (f->length > 0 && f->length < 1.0f)
-			continue;
-		int rank = 0;
-		if (strcmp(f->format, "512Kb MPEG4") == 0)
-			rank = 4;
-		else if (strcmp(f->format, "Ogg Video") == 0)
-			rank = 3;
-		else if ((strcmp(f->format, "h.264") == 0 || strcmp(f->format, "h.264 IA") == 0 ||
-				 strcmp(f->format, "MPEG4") == 0) &&
-			(f->height == 0 || f->height <= 480))
-			rank = f->height && f->height <= 360 ? 2 : 1;
-		if (rank > best_rank) {
+		int rank = video_rank(f);
+		int kbps = ia_file_kbps(f);
+		if (rank > best_rank || (rank && rank == best_rank && kbps && ia_file_kbps(&it->files[best]) > kbps)) {
 			best_rank = rank;
 			best = i;
 		}

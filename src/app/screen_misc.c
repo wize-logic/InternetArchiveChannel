@@ -4,17 +4,15 @@
 
 #include "app/app.h"
 
-enum { ID_BACK = 1 };
-
 static char g_title[160];
 
 static void placeholder_frame(const char *subtitle, const char *body)
 {
 	struct rect c = app_chrome(g_title, subtitle);
 	font_draw_wrapped(theme.body, c.x, c.y + 10, (int)c.w, theme.text_dim, body);
-	if (ui_button(ID_BACK, (struct rect){c.x, c.y + c.h - 50, 160, 46}, "Back") || ui_pressed(BTN_B))
+	if (app_back())
 		app_pop();
-	ui_hints("(A) Select    (B) Back");
+	ui_hints("(A) Select");
 }
 
 static void placeholder_enter(void *arg)
@@ -48,9 +46,9 @@ static void about_frame(void)
 		"FreeType, libjpeg-turbo, libpng, zlib, cJSON, Noto Sans, libogc and WiiLibs; their licences are in "
 		"THIRD_PARTY_NOTICES.md in the app folder.";
 	font_draw_wrapped(theme.small, c.x, c.y + 4, (int)c.w, theme.text, text);
-	if (ui_button(ID_BACK, (struct rect){c.x, c.y + c.h - 50, 160, 46}, "Back") || ui_pressed(BTN_B))
+	if (app_back())
 		app_pop();
-	ui_hints("(A) Select    (B) Back");
+	ui_hints("(A) Select");
 }
 
 const struct screen screen_about = {"about", about_enter, about_frame};

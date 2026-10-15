@@ -13,6 +13,7 @@ enum { ID_BACK = 1, ID_FORWARD, ID_ZOOM_OUT, ID_ZOOM_IN, ID_BOOKMARK };
 static struct web_args g_args;
 static int g_failed;
 static int g_typing, g_had_caret;
+static int g_leave; /* "<" with no history left: leave the page view */
 static char g_note[64];
 static uint64_t g_note_until;
 
@@ -27,7 +28,7 @@ static void enter(void *arg)
 	if (arg)
 		g_args = *(const struct web_args *)arg;
 	g_failed = webview_open(g_args.url, g_args.timestamp) != 0;
-	g_typing = g_had_caret = 0;
+	g_typing = g_had_caret = g_leave = 0;
 	g_note[0] = '\0';
 }
 
@@ -37,8 +38,14 @@ static void toolbar(struct rect s, float strip, float *right_edge)
 	float x = s.x + s.w - (bw * 4 + gap * 4 + 96);
 	*right_edge = x - 10;
 	float y = s.y + 2;
-	if (ui_button(ID_BACK, (struct rect){x, y, bw, bh}, "<"))
-		webview_back();
+	/* Back through the page's history, then out of the page view (B only drags). */
+	if (ui_button(ID_BACK, (struct rect){x, y, bw, bh}, "<")) {
+		if (webview_can_back()) {
+			webview_back();
+		} else {
+			g_leave = 1; /* at the end of the frame: the page is still drawn below */
+		}
+	}
 	x += bw + gap;
 	if (ui_button(ID_FORWARD, (struct rect){x, y, bw, bh}, ">"))
 		webview_forward();
@@ -63,7 +70,7 @@ static void frame(void)
 	struct rect s = ui_safe_area();
 	if (g_failed) {
 		app_spinner(s, "The page viewer couldn't start (NetSurf resources missing from the SD card?)");
-		if (ui_pressed(BTN_B))
+		if (app_back_button((struct rect){s.x, s.y, APP_BACK_W, 46}))
 			app_pop();
 		return;
 	}
@@ -150,7 +157,8 @@ static void frame(void)
 		return;
 	}
 
-	if (want_close) {
+	if (want_close || g_leave) {
+		g_leave = 0;
 		webview_close();
 		app_pop();
 	}

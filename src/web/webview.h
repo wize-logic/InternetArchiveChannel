@@ -14,8 +14,8 @@ int webview_init(void);
 /* Opens `url` as captured at `timestamp` (YYYYMMDDhhmmss prefix, e.g. "19990508"). */
 int webview_open(const char *url, const char *timestamp);
 /* Pumps NetSurf, handles input inside the area (UI coordinates) and renders the visible part.
- * Controls: A clicks, holding B drags the page (any direction), a tap of B goes back
- * (*want_close is set when there's no history), +/- zoom, the D-pad scrolls. (NetSurf has its own `struct rect`, so plain
+ * Controls: A clicks, holding B drags the page (any direction), +/- zoom, the D-pad scrolls.
+ * (Going back is the caller's toolbar: webview_back.) (NetSurf has its own `struct rect`, so plain
  * floats.) */
 void webview_frame(float ax, float ay, float aw, float ah, const struct input_state *in, int *want_close);
 /* What to draw: the page texture covering the area's full width and `*draw_h` UI pixels tall,

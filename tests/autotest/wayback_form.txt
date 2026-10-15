@@ -25,7 +25,7 @@ wait 1
 press PLUS
 wait 5
 log shot:form-submitted
-press B
+click 537 46
 wait 5
 press 2
 wait 3

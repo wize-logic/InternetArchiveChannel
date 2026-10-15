@@ -15,13 +15,12 @@
 #include "wl/platform/platform.h"
 
 #define SETTINGS_PATH APP_DIR "/settings.ini"
-#define STACK_MAX 8
 
 struct settings app_settings;
 
 static struct {
-	const struct screen *stack[STACK_MAX];
-	int focus[STACK_MAX]; /* focused widget per screen, restored when returning to it */
+	const struct screen *stack[APP_STACK_MAX];
+	int focus[APP_STACK_MAX]; /* focused widget per screen, restored when returning to it */
 	int depth;
 	const struct screen *pending_push;
 	void *pending_arg;
@@ -42,6 +41,11 @@ void app_pop(void)
 	g.pending_pop = 1;
 }
 
+int app_depth(void)
+{
+	return g.depth;
+}
+
 void app_request_exit(void)
 {
 	g.exit_dialog = 1;
@@ -60,7 +64,7 @@ static void apply_stack_changes(void)
 		ui_focus(g.focus[g.depth - 1]);
 	}
 	g.pending_pop = 0;
-	if (g.pending_push && g.depth < STACK_MAX) {
+	if (g.pending_push && g.depth < APP_STACK_MAX) {
 		if (g.depth > 0)
 			g.focus[g.depth - 1] = ui_get_focus();
 		g.stack[g.depth++] = g.pending_push;

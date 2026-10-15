@@ -70,7 +70,7 @@ static struct {
 	float scale;
 	size_t bytes;
 	enum gui_pointer_shape shape; /* what NetSurf wants under the pointer (link, text field...) */
-	struct drag drag; /* B: a tap goes back, holding it drags the page */
+	struct drag drag; /* B: holding it and moving drags the page */
 	float scroll_x, scroll_x_target; /* pages wider than the view (fixed-width layouts, zoom) */
 	int doc_w;
 } g;
@@ -417,10 +417,9 @@ void webview_frame(float ax, float ay, float aw, float ah, const struct input_st
 	float max_x = (float)(g.doc_w - PAGE_W) > 0 ? (float)(g.doc_w - PAGE_W) : 0;
 	float page_per_ui = (float)PAGE_W / area.w;
 
-	/* B: hold it and move the pointer to drag the page (it follows the hand, both ways). Tapped,
-	 * it goes back instead (below). */
+	/* B: hold it and move the pointer to drag the page (it follows the hand, both ways). */
 	float dx, dy;
-	int b = drag_update(&g.drag, in, wl_platform_time_us(), &dx, &dy);
+	drag_update(&g.drag, in, &dx, &dy);
 	g.scroll_x_target -= dx * page_per_ui;
 	g.scroll_target -= dy * page_per_ui;
 
@@ -472,13 +471,6 @@ void webview_frame(float ax, float ay, float aw, float ah, const struct input_st
 		g.hover[0] = '\0';
 	}
 
-	/* B tapped: back through history, or leave. */
-	if (b == DRAG_TAP) {
-		if (browser_window_history_back_available(g.bw))
-			browser_window_history_back(g.bw, false);
-		else
-			*want_close = 1;
-	}
 	/* +/-: zoom. 2: zoom in, cycling back to the smallest size. */
 	if (in->pressed & BTN_PLUS)
 		webview_zoom(1);

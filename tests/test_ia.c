@@ -33,9 +33,18 @@ int main(int argc, char **argv)
 	CHECK(ia_search_url(url, sizeof url, "collection:prelinger", IA_SORT_POPULAR, 12, 1) == 0);
 	CHECK(strstr(url, "q=%28collection%3Aprelinger%29%20AND%20NOT%20access-restricted-item%3Atrue") != NULL);
 	CHECK(strstr(url, "sort%5B%5D=downloads+desc&rows=12&page=1&output=json") != NULL);
-	char q[256];
-	ia_user_query("grateful dead: live*", "audio", q, sizeof q);
-	CHECK(strcmp(q, "(grateful dead  live ) AND mediatype:audio") == 0);
+	CHECK(strstr(url, "NOT%20collection%3A%28inlibrary%20OR%20printdisabled%20OR%20stream_only%20OR%20tvarchive") != NULL);
+	char q[512];
+	ia_user_query("grateful dead: live*", "audio", 1, q, sizeof q);
+	CHECK(strcmp(q, "(title:(grateful AND dead AND live) OR creator:(grateful AND dead AND live)) AND "
+		"mediatype:(audio OR etree) AND NOT identifier:fav-*") == 0);
+	ia_user_query("  \"night of\" OR dead ", "", 0, q, sizeof q);
+	CHECK(strcmp(q, "(\"night of\" AND or AND dead) AND mediatype:(movies OR audio OR etree OR texts OR image OR "
+		"collection) AND NOT identifier:fav-*") == 0);
+	ia_user_query("movies", "movies", 0, q, sizeof q);
+	CHECK(strcmp(q, "(movies) AND mediatype:movies AND NOT identifier:fav-*") == 0);
+	ia_user_query(" ?! \"\" ", "", 1, q, sizeof q);
+	CHECK(q[0] == '\0');
 	CHECK(ia_thumb_url(url, sizeof url, "gd1977-05-08") == 0 &&
 		strcmp(url, "https://archive.org/services/img/gd1977-05-08") == 0);
 	CHECK(ia_file_url(url, sizeof url, "my item", "dir/My File #1.mp3") == 0 &&
@@ -166,6 +175,16 @@ int main(int argc, char **argv)
 	flow = ia_reflow_text(bom, sizeof bom - 1);
 	CHECK(flow && strcmp(flow, "na\xc3\xafve") == 0);
 	free(flow);
+
+	/* No length cap; equally ranked files go lowest bitrate first, and the bitrate is size/length. */
+	struct ia_file vf[3] = {{.format = "MPEG4", .size = 3920604928LL, .length = 12707, .width = 640, .height = 480},
+		{.format = "h.264", .size = 748401304LL, .length = 7240, .width = 640, .height = 480},
+		{.format = "h.264", .length = 7240, .width = 640, .height = 480}};
+	struct ia_item long_it = {.files = vf, .file_count = 3};
+	CHECK(ia_file_kbps(&vf[0]) == 2468 && ia_file_kbps(&vf[1]) == 826 && ia_file_kbps(&vf[2]) == 0);
+	CHECK(ia_pick_video(&long_it, NULL) == 1);
+	long_it.file_count = 1;
+	CHECK(ia_pick_video(&long_it, NULL) == 0);
 
 	printf("%s\n", failures ? "FAILED" : "ok");
 	return failures != 0;

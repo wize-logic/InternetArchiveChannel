@@ -11,14 +11,18 @@ log shot:osk-typed
 press PLUS
 wait 20
 log shot:search
-press B
+click 101 51
+wait 5
+nopoint
 wait 15
 press DOWN
 wait 5
 press A
 wait 20
 log shot:browse
-press B
+click 101 51
+wait 5
+nopoint
 wait 15
 press DOWN
 wait 5
@@ -36,7 +40,9 @@ wait 5
 press A
 wait 15
 log shot:settings-toggled
-press B
+click 101 51
+wait 5
+nopoint
 wait 15
 point 600 300
 wait 15

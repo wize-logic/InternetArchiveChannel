@@ -20,7 +20,7 @@ static void frame(void)
 {
 	struct nowplaying *np = nowplaying();
 	struct rect c = app_chrome(np->item_title, np->creator[0] ? np->creator : NULL);
-	if (ui_pressed(BTN_B)) {
+	if (app_back()) {
 		app_pop(); /* keeps playing; the mini bar shows it */
 		return;
 	}
@@ -123,7 +123,7 @@ static void frame(void)
 	/* Remote shortcuts: +/- for next/previous track. */
 	if (ui_pressed(BTN_PLUS) && np->current + 1 < np->count)
 		nowplaying_play(np->current + 1);
-	ui_hints("(A) Select    (B) Back, keep playing    (+) Next track");
+	ui_hints("(A) Select    (+) Next track    Back keeps playing");
 }
 
 const struct screen screen_player = {"player", enter, frame};
