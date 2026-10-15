@@ -236,6 +236,12 @@ static void pktq_clear(struct pktq *q)
 		pktq_pop(q);
 }
 
+/* The read-ahead holds all it may. */
+static int pktq_full(void)
+{
+	return g_aq.bytes + g_vpq.bytes >= PKTQ_BYTES || g_aq.count == PKTQ_SIZE || g_vpq.count == PKTQ_SIZE;
+}
+
 const struct player_frame *player_video_frame(void)
 {
 	if (!g.want_video || (g.state != PL_PLAYING && g.state != PL_PAUSED))
@@ -405,6 +411,21 @@ static int mp4_read_packet(mp4idx *x, media_stream *s, AVPacket *pkt)
 	pkt->dts = m.dts;
 	if (m.key)
 		pkt->flags |= AV_PKT_FLAG_KEY;
+	return 0;
+}
+
+/* Reads the next packet into its stream's read-ahead queue (or drops it, for a stream not being
+ * played). <0 at the end of the file, on an error, or when a stop or seek interrupted the read. */
+static int read_packet(mp4idx *midx, AVFormatContext *fmt, AVPacket *pkt, int aidx, int vidx, int audio, int video)
+{
+	int rc = midx ? mp4_read_packet(midx, g.stream, pkt) : av_read_frame(fmt, pkt);
+	if (rc < 0)
+		return rc;
+	if (pkt->stream_index == aidx && audio)
+		pktq_put(&g_aq, pkt);
+	else if (pkt->stream_index == vidx && video)
+		pktq_put(&g_vpq, pkt);
+	av_packet_unref(pkt);
 	return 0;
 }
 
@@ -582,15 +603,20 @@ static void *decode_thread(void *arg)
 				g.video_epoch_us = wl_platform_time_us();
 		}
 
-		/* Nothing here waits: each pass moves audio into the ring, decodes video while the frame
-		 * queue has room, and reads a packet for whichever stream has run out. */
+		/* Nothing here waits: each pass fills the audio ring as far as it can, takes one step of
+		 * video decoding while the frame queue has room, and reads a packet for video if it has
+		 * run out. Audio goes first and all the way: it costs little, and a dry ring stops the
+		 * clock. (One audio frame per video step, 21 ms of sound per 33 ms frame, starved it
+		 * whenever the video queue had room.) */
 		int progress = 0;
-		if (pcm_done < pcm_len) {
-			uint32_t n = pcm_ring_write(&g.ring, pcm + pcm_done * 2, (uint32_t)(pcm_len - pcm_done));
-			pcm_done += (int)n;
-			progress |= n > 0;
-		}
-		if (adec && g.has_audio && pcm_done == pcm_len) {
+		while (adec && g.has_audio && !g.stop && !g.seek_req) {
+			if (pcm_done < pcm_len) {
+				uint32_t n = pcm_ring_write(&g.ring, pcm + pcm_done * 2, (uint32_t)(pcm_len - pcm_done));
+				pcm_done += (int)n;
+				progress |= n > 0;
+				if (pcm_done < pcm_len)
+					break; /* the ring is full */
+			}
 			AVPacket *ap;
 			if (avcodec_receive_frame(adec, frame) == 0) {
 				int out_max = swr_get_out_samples(swr, frame->nb_samples);
@@ -610,9 +636,19 @@ static void *decode_thread(void *arg)
 				}
 				progress = 1;
 			} else if ((ap = pktq_peek(&g_aq))) {
-				if (avcodec_send_packet(adec, ap) != AVERROR(EAGAIN))
-					pktq_pop(&g_aq);
+				if (avcodec_send_packet(adec, ap) == AVERROR(EAGAIN))
+					break; /* can't happen after receive came back empty; don't spin on it */
+				pktq_pop(&g_aq);
 				progress = 1;
+			} else if (!read_eof && !pktq_full()) {
+				if (read_packet(midx, fmt, pkt, aidx, vidx, 1, vdec != NULL) < 0) {
+					if (g.stop || g.seek_req)
+						break;
+					read_eof = 1;
+				}
+				progress = 1;
+			} else {
+				break;
 			}
 		}
 		/* A jam (see below) lets the queue run to VQUEUE_MAX, then drop its oldest frames. */
@@ -649,22 +685,15 @@ static void *decode_thread(void *arg)
 
 		int need_audio = adec && g.has_audio && pcm_done == pcm_len && !g_aq.count;
 		int need_video = vdec && g_vpq.count < 2;
-		int full = g_aq.bytes + g_vpq.bytes >= PKTQ_BYTES || g_aq.count == PKTQ_SIZE || g_vpq.count == PKTQ_SIZE;
+		int full = pktq_full();
 		/* Audio that sits further into the file than the read-ahead holds: with the ring dry the
 		 * clock stops, so decode video past VQUEUE (dropping frames) to make room to read on. */
 		jammed = full && need_audio && pcm_ring_count(&g.ring) == 0;
 		if (!read_eof && (need_audio || need_video) && !full) {
-			int rc = midx ? mp4_read_packet(midx, g.stream, pkt) : av_read_frame(fmt, pkt);
-			if (rc < 0) {
+			if (read_packet(midx, fmt, pkt, aidx, vidx, adec && g.has_audio, vdec != NULL) < 0) {
 				if (g.stop || g.seek_req)
 					continue;
 				read_eof = 1;
-			} else {
-				if (pkt->stream_index == aidx && adec && g.has_audio)
-					pktq_put(&g_aq, pkt);
-				else if (pkt->stream_index == vidx && vdec)
-					pktq_put(&g_vpq, pkt);
-				av_packet_unref(pkt);
 			}
 			progress = 1;
 		}
@@ -754,8 +783,11 @@ int player_open(const char *url, int want_video, int fast_video)
 	g.video_epoch_us = 0;
 	g.duration = 0;
 	g.state = PL_LOADING;
-	/* Big stack: FFmpeg's decoders keep sizeable locals. */
-	if (plat_thread_create(&g.thread, decode_thread, NULL, 256 * 1024, 70) != 0) {
+	/* Big stack: FFmpeg's decoders keep sizeable locals. Video decoding takes most of the CPU, so
+	 * it runs below the UI (main) thread, which only needs a slice of each frame: above it, the UI
+	 * waited on every frame decode, fell to ~15 fps on SD H.264 and skipped half the frames it
+	 * should have shown. Audio alone is cheap and stays above the UI, safe from busy screens. */
+	if (plat_thread_create(&g.thread, decode_thread, NULL, 256 * 1024, want_video ? 60 : 70) != 0) {
 		set_error("%s", "Couldn't start the player.");
 		return -1;
 	}

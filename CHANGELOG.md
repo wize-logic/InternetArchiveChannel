@@ -13,6 +13,13 @@
   queue (up to 4 MB) and is decoded when it needs data. A 1985 CBS recording now shows 29.97 fps
   with no drops in Dolphin; H.264/AAC MP4s lose no frames either. (Low counts on some Ogg files are
   the file itself: Theora stores a repeated frame as an empty packet.)
+- **The app stays smooth during SD (720x480) H.264 video.** The decode thread ran above the UI, so
+  the UI waited on every frame decode: on hardware it dropped to ~15 fps (pointer and controls lagged)
+  and skipped half the video frames it should have shown. Video decoding now runs below the UI.
+  The decode loop also took only one audio frame per video frame (21 ms of sound per 33 ms frame),
+  which starved the audio, and with it the clock, whenever video wasn't ahead; audio now fills its
+  buffer first. Dolphin with the CPU at 50%: UI 18 → 60 fps, video shown 13 → 25-30 fps; at 35% the
+  clock no longer slips (6.6 s per 10 s before).
 - If audio never arrives, the picture no longer stays frozen at 0:00: after 8 s of video with no
   audio output the player runs on the video clock.
 - Of equally ranked video files, the lower-bitrate one is chosen; the item page warns above
